@@ -5,4 +5,3 @@ benchmarks/out/*.dat
 benchmarks/out/*.out
 tests/*.js
 _site
-vendor
