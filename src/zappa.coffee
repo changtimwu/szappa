@@ -54,7 +54,7 @@ copy_data_to = (recipient, sources) ->
 # Keep inline views at the module level and namespaced by app id
 # so that the monkeypatched express can look them up.
 views = {}
-  
+viewhelpers = {}
 # Monkeypatch express to support lookup of inline templates. Such is life.
 express.View.prototype.__defineGetter__ 'exists', ->
   # Path given by zappa: /path/to/appid/foo.bar.
@@ -103,7 +103,7 @@ zappa.app = (func) ->
   ws_handlers = {}
   helpers = {}
   postrenders = {}
-  
+
   app = context.app = express.createServer()
   io = context.io = socketio.listen(app)
 
@@ -115,7 +115,7 @@ zappa.app = (func) ->
 
   # Zappa's default settings.
   app.set 'view engine', 'coffee'
-  app.register '.coffee', zappa.adapter require('coffeekup').adapters.express,
+  app.register '.coffee', zappa.adapter require('coffeecup').adapters.express,
     blacklist: ['format', 'autoescape', 'locals', 'hardcode', 'cache']
 
   # Sets default view dir to @root (`path.dirname(module.parent.filename)`).
@@ -164,11 +164,14 @@ zappa.app = (func) ->
     for k, v of obj
       helpers[k] = v
 
+  context.viewhelper = ( obj)->
+    for k, v of obj
+      viewhelpers[k] = v
+
   context.postrender = (obj) ->
     jsdom = require 'jsdom'
     for k, v of obj
       postrenders[k] = v
-
   context.on = (obj) ->
     for k, v of obj
       ws_handlers[k] = v
@@ -442,6 +445,7 @@ zappa.adapter = (engine, options = {}) ->
   options.blacklist ?= []
   engine = require(engine) if typeof engine is 'string'
   compile: (template, data) ->
+    data.hardcode?=viewhelpers
     template = engine.compile(template, data)
     (data) ->
       for k, v of data.params
