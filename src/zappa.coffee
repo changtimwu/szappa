@@ -12,9 +12,16 @@ path = require 'path'
 uuid = require 'node-uuid'
 express = require 'express'
 socketio = require 'socket.io'
+uglify = require 'uglify-js'
+minify = (js) ->
+  ast = uglify.parser.parse(js)
+  ast = uglify.uglify.ast_mangle(ast)
+  ast = uglify.uglify.ast_squeeze(ast)
+  uglify.uglify.gen_code(ast)
+
 jquery = fs.readFileSync(__dirname + '/../vendor/jquery-1.6.4.min.js').toString()
 sammy = fs.readFileSync(__dirname + '/../vendor/sammy-0.7.0.min.js').toString()
-uglify = require 'uglify-js'
+coffeecup = fs.readFileSync( __dirname+ '/../node_modules/coffeecup/lib/coffeecup.js').toString()
 
 # Soft dependencies:
 jsdom = null
@@ -37,12 +44,6 @@ coffeescript_helpers = """
       if (this[i] === item) return i;
     } return -1; };
 """.replace /\n/g, ''
-
-minify = (js) ->
-  ast = uglify.parser.parse(js)
-  ast = uglify.uglify.ast_mangle(ast)
-  ast = uglify.uglify.ast_squeeze(ast)
-  uglify.uglify.gen_code(ast)
 
 # Shallow copy attributes from `sources` (array of objects) to `recipient`.
 # Does NOT overwrite attributes already present in `recipient`.
@@ -209,6 +210,7 @@ zappa.app = (func) ->
               when '/zappa/zappa.js' then send client
               when '/zappa/jquery.js' then send jquery
               when '/zappa/sammy.js' then send sammy
+              when '/zappa/coffeecup.js' then send coffeecup
               else next()
 
     use = (name, arg = null) ->
