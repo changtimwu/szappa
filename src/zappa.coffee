@@ -247,6 +247,10 @@ zappa.app = (func) ->
 
   # Register a route with express.
   route = (r) ->
+    qry = app.lookup[r.verb]( r.path)
+    if qry.length > 0
+      console.log "#{r.verb} #{r.path} exists! Replace it"
+      app.remove[r.verb] r.path
     if typeof r.handler is 'string'
       app[r.verb] r.path, (req, res) ->
         res.contentType r.contentType if r.contentType?
