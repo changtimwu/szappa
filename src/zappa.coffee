@@ -119,6 +119,17 @@ zappa.app = (func) ->
   app.register '.coffee', zappa.adapter require('coffeecup').adapters.express,
     blacklist: ['format', 'autoescape', 'locals', 'hardcode', 'cache']
 
+  replace_partials = (src, pf) ->
+    return src.replace /@partial \w+/g, (match, pos, contents, s)->
+      fn = match['@partial'.length+1..]
+      pf(fn)
+
+  app.register '.html',
+    compile: (str, options)->
+      return (locals)->
+        str = str.replace(/@body/g, options.body) if options.body
+        replace_partials(str, @options.partial)
+
   # Sets default view dir to @root (`path.dirname(module.parent.filename)`).
   app.set 'views', path.join(context.root, '/views')
 
