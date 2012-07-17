@@ -19,5 +19,5 @@
     "stylus": "0.19.3"
   },
   "keywords": ["framework", "websockets", "express", "socket.io", "sinatra", "dsl"],
-  "main": "./lib/zappa",
+  "main": "./lib/zappa"
 }
