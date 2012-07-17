@@ -128,7 +128,8 @@ zappa.app = (func) ->
     compile: (str, options)->
       return (locals)->
         str = str.replace(/@body/g, options.body) if options.body
-        replace_partials(str, @options.partial)
+        str = str.replace(/_initdata/g, options.initdata) if options.initdata
+        replace_partials(str, options.partial)
 
   # Sets default view dir to @root (`path.dirname(module.parent.filename)`).
   app.set 'views', path.join(context.root, '/views')
