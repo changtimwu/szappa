@@ -20,28 +20,6 @@ minify = (js) ->
   uglify.uglify.gen_code(ast)
 
 
-# Soft dependencies:
-jsdom = null
-
-# CoffeeScript-generated JavaScript may contain anyone of these; when we "rewrite"
-# a function (see below) though, it loses access to its parent scope, and consequently to
-# any helpers it might need. So we need to reintroduce these helpers manually inside any
-# "rewritten" function.
-coffeescript_helpers = """
-  var __slice = Array.prototype.slice;
-  var __hasProp = Object.prototype.hasOwnProperty;
-  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-  var __extends = function(child, parent) {
-    for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
-    function ctor() { this.constructor = child; }
-    ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype;
-    return child; };
-  var __indexOf = Array.prototype.indexOf || function(item) {
-    for (var i = 0, l = this.length; i < l; i++) {
-      if (this[i] === item) return i;
-    } return -1; };
-""".replace /\n/g, ''
-
 # Shallow copy attributes from `sources` (array of objects) to `recipient`.
 # Does NOT overwrite attributes already present in `recipient`.
 copy_data_to = (recipient, sources) ->
@@ -105,9 +83,6 @@ zappa.app = (func) ->
   app = context.app = express.createServer()
   io = context.io = socketio.listen(app)
 
-  # Reference to the zappa client, the value will be set later.
-  client = null
-  
   # Tracks if the zappa middleware is already mounted (`@use 'zappa'`).
   zappa_used = no
 
@@ -137,19 +112,6 @@ zappa.app = (func) ->
           for k, v of arguments[0]
             route verb: verb, path: k, handler: v
 
-  context.client = (obj) ->
-    context.use 'zappa' unless zappa_used
-    for k, v of obj
-      js = ";zappa.run(#{v});"
-      js = minify(js) if app.settings['minify']
-      route verb: 'get', path: k, handler: js, contentType: 'js'
-
-  context.coffee = (obj) ->
-    for k, v of obj
-      js = ";#{coffeescript_helpers}(#{v})();"
-      js = minify(js) if app.settings['minify']
-      route verb: 'get', path: k, handler: js, contentType: 'js'
-
   context.js = (obj) ->
     for k, v of obj
       js = String(v)
@@ -160,12 +122,6 @@ zappa.app = (func) ->
     for k, v of obj
       css = String(v)
       route verb: 'get', path: k, handler: css, contentType: 'css'
-
-  context.stylus = (obj) ->
-    for k, v of obj
-      css = require('stylus').render v, filename: k, (err, css) ->
-        throw err if err
-        route verb: 'get', path: k, handler: css, contentType: 'css'
 
   context.helper = (obj) ->
     for k, v of obj
@@ -202,11 +158,7 @@ zappa.app = (func) ->
           send = (code) ->
             res.contentType 'js'
             res.send code
-          if req.method.toUpperCase() isnt 'GET' then next()
-          else
-            switch req.url
-              when '/zappa/zappa.js' then send client
-              else next()
+          next()
 
     use = (name, arg = null) ->
       zappa_used = yes if name is 'zappa'
@@ -356,28 +308,6 @@ zappa.app = (func) ->
 
   # Go!
   func.apply(context, [context])
-
-  # The stringified zappa client.
-  client = require('./client').build(zappa.version, app.settings)
-  client = ";#{coffeescript_helpers}(#{client})();"
-  client = minify(client) if app.settings['minify']
-
-  if app.settings['default layout']
-    context.view layout: ->
-      doctype 5
-      html ->
-        head ->
-          title @title if @title
-          if @scripts
-            for s in @scripts
-              script src: s + '.js'
-          script(src: @script + '.js') if @script
-          if @stylesheets
-            for s in @stylesheets
-              link rel: 'stylesheet', href: s + '.css'
-          link(rel: 'stylesheet', href: @stylesheet + '.css') if @stylesheet
-          style @style if @style
-        body @body
 
   context
 
