@@ -235,7 +235,8 @@ zappa.app = (func) ->
         
           if app.settings['databag']
             args[1].params = data
-
+          # Just forward params to express.
+          res.render.apply res, args
 
         for name, helper of helpers
           do (name, helper) ->
