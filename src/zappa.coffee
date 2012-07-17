@@ -180,14 +180,6 @@ zappa.app = (func) ->
     
   context.settings = app.settings
 
-  context.shared = (obj) ->
-    context.use 'zappa' unless zappa_used
-    for k, v of obj
-      js = ";zappa.run(#{v});"
-      js = minify(js) if app.settings['minify']
-      route verb: 'get', path: k, handler: js, contentType: 'js'
-      v.apply(context, [context])
-
   context.include = (p) ->
     sub = require path.join(context.root, p)
     sub.include.apply(context, [context])
@@ -269,7 +261,6 @@ zappa.app = (func) ->
         settings: app.settings
         socket: socket
         id: socket.id
-        client: c
         emit: ->
           if typeof arguments[0] isnt 'object'
             socket.emit.apply socket, arguments
