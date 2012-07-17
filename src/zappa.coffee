@@ -97,7 +97,8 @@ zappa.app = (func) ->
     compile: (str, options)->
       return (locals)->
         str = str.replace(/@body/g, options.body) if options.body
-        str = str.replace(/_initdata/g, options.initdata) if options.initdata
+        if options.initdata and not options.isPartial and not options.isLayout
+          str = str.replace /_initdata/g, JSON.stringify(options.initdata)
         replace_partials(str, options.partial)
 
   # Sets default view dir to @root (`path.dirname(module.parent.filename)`).
