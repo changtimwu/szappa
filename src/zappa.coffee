@@ -19,9 +19,6 @@ minify = (js) ->
   ast = uglify.uglify.ast_squeeze(ast)
   uglify.uglify.gen_code(ast)
 
-jquery = fs.readFileSync(__dirname + '/../vendor/jquery-1.6.4.min.js').toString()
-sammy = fs.readFileSync(__dirname + '/../vendor/sammy-0.7.0.min.js').toString()
-coffeecup = fs.readFileSync( __dirname+ '/../node_modules/coffeecup/lib/coffeecup.js').toString()
 
 # Soft dependencies:
 jsdom = null
@@ -115,10 +112,7 @@ zappa.app = (func) ->
   zappa_used = no
 
   # Zappa's default settings.
-  app.set 'view engine', 'coffee'
-  app.register '.coffee', zappa.adapter require('coffeecup').adapters.express,
-    blacklist: ['format', 'autoescape', 'locals', 'hardcode', 'cache']
-
+  app.set 'view engine', 'html'
   replace_partials = (src, pf) ->
     return src.replace /@partial \w+/g, (match, pos, contents, s)->
       fn = match['@partial'.length+1..]
@@ -177,14 +171,6 @@ zappa.app = (func) ->
     for k, v of obj
       helpers[k] = v
 
-  context.viewhelper = ( obj)->
-    for k, v of obj
-      viewhelpers[k] = v
-
-  context.postrender = (obj) ->
-    jsdom = require 'jsdom'
-    for k, v of obj
-      postrenders[k] = v
   context.on = (obj) ->
     for k, v of obj
       ws_handlers[k] = v
@@ -220,9 +206,6 @@ zappa.app = (func) ->
           else
             switch req.url
               when '/zappa/zappa.js' then send client
-              when '/zappa/jquery.js' then send jquery
-              when '/zappa/sammy.js' then send sammy
-              when '/zappa/coffeecup.js' then send coffeecup
               else next()
 
     use = (name, arg = null) ->
@@ -301,18 +284,6 @@ zappa.app = (func) ->
           if app.settings['databag']
             args[1].params = data
 
-          if args[1].postrender?
-            # Apply postrender before sending response.
-            res.render args[0], args[1], (err, str) ->
-              jsdom.env html: str, src: [jquery], done: (err, window) ->
-                ctx.window = window
-                rendered = postrenders[args[1].postrender].apply(ctx, [window.$, ctx])
-
-                doctype = (window.document.doctype or '') + "\n"
-                res.send doctype + window.document.documentElement.outerHTML
-          else
-            # Just forward params to express.
-            res.render.apply res, args
 
         for name, helper of helpers
           do (name, helper) ->
@@ -440,36 +411,11 @@ zappa.run = ->
   log 'Express server listening on port %d in %s mode',
     app.address()?.port, app.settings.env
 
-  log "Zappa #{zappa.version} \"#{codename}\" orchestrating the show"
+  log "SZappa #{zappa.version} \"#{codename}\" orchestrating the show"
 
   zapp
 
-# Creates a zappa view adapter for templating engine `engine`. This adapter
-# can be used with `app.register` and creates params "shortcuts".
-# 
-# Zappa, by default, automatically sends all request params to templates,
-# but inside the `params` local.
-#
-# This adapter adds a "root local" for each of these params, *only* 
-# if a local with the same name doesn't exist already, *and* the name is not
-# in the optional blacklist.
-#
-# The blacklist is useful to prevent request params from triggering unset
-# template engine options.
-#
-# If `engine` is a string, the adapter will use `require(engine)`. Otherwise,
-# it will assume the `engine` param is an object with a `compile` function.
-zappa.adapter = (engine, options = {}) ->
-  options.blacklist ?= []
-  engine = require(engine) if typeof engine is 'string'
-  compile: (template, data) ->
-    data.hardcode?=viewhelpers
-    template = engine.compile(template, data)
-    (data) ->
-      for k, v of data.params
-        if typeof data[k] is 'undefined' and k not in options.blacklist
-          data[k] = v
-      template(data)
+
 
 module.exports = zappa.run
 module.exports.run = zappa.run
