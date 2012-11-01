@@ -129,11 +129,12 @@ zappa.app = (func) ->
 
   context.on = (obj) ->
     for name, h of obj
-      if ws_handlers[name]?
+      if not ws_handlers[name]?
         for socket in @io.sockets.clients()
-          socket.removeAllListeners name
           socket.on name, (data) ->
             ctx = build_ctx(socket)
+            ctx.data = data
+            h = ws_handlers[name]
             h.apply(ctx, [ctx])
       ws_handlers[name] = h
   context.view = (obj) ->
@@ -284,7 +285,6 @@ zappa.app = (func) ->
   # Register socket.io handlers.
   io.sockets.on 'connection', (socket) ->
     c = {}
-
     ctx = build_ctx(socket)
     ws_handlers.connection.apply(ctx, [ctx]) if ws_handlers.connection?
 
@@ -298,6 +298,7 @@ zappa.app = (func) ->
           socket.on name, (data) ->
             ctx = build_ctx(socket)
             ctx.data = data
+            h = ws_handlers[name]
             switch app.settings['databag']
               when 'this' then h.apply(data, [ctx])
               when 'param' then h.apply(ctx, [data])
