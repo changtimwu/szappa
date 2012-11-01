@@ -112,7 +112,6 @@ zappa.app = (func) ->
         else
           for k, v of arguments[0]
             route verb: verb, path: k, handler: v
-
   context.js = (obj) ->
     for k, v of obj
       js = String(v)
@@ -129,9 +128,14 @@ zappa.app = (func) ->
       helpers[k] = v
 
   context.on = (obj) ->
-    for k, v of obj
-      ws_handlers[k] = v
-
+    for name, h of obj
+      if ws_handlers[name]?
+        for socket in @io.sockets.clients()
+          socket.removeAllListeners name
+          socket.on name, (data) ->
+            ctx = build_ctx(socket)
+            h.apply(ctx, [ctx])
+      ws_handlers[name] = h
   context.view = (obj) ->
     for k, v of obj
       views["#{context.id}/#{k}"] = v
@@ -250,49 +254,49 @@ zappa.app = (func) ->
         res.contentType(r.contentType) if r.contentType?
         if typeof result is 'string' then res.send result
         else return result
-  
+ 
+  build_ctx = (socket)->
+    ctx =
+      app: app
+      io: io
+      settings: app.settings
+      socket: socket
+      id: socket.id
+      emit: ->
+        if typeof arguments[0] isnt 'object'
+          socket.emit.apply socket, arguments
+        else
+          for k, v of arguments[0]
+            socket.emit.apply socket, [k, v]
+      broadcast: ->
+        if typeof arguments[0] isnt 'object'
+          socket.broadcast.emit.apply socket.broadcast, arguments
+        else
+          for k, v of arguments[0]
+            socket.broadcast.emit.apply socket.broadcast, [k, v]
+
+    for name, helper of helpers
+      do (name, helper) ->
+        ctx[name] = ->
+          helper.apply(ctx, arguments)
+    ctx
+
   # Register socket.io handlers.
   io.sockets.on 'connection', (socket) ->
     c = {}
-    
-    build_ctx = ->
-      ctx =
-        app: app
-        io: io
-        settings: app.settings
-        socket: socket
-        id: socket.id
-        emit: ->
-          if typeof arguments[0] isnt 'object'
-            socket.emit.apply socket, arguments
-          else
-            for k, v of arguments[0]
-              socket.emit.apply socket, [k, v]
-        broadcast: ->
-          if typeof arguments[0] isnt 'object'
-            socket.broadcast.emit.apply socket.broadcast, arguments
-          else
-            for k, v of arguments[0]
-              socket.broadcast.emit.apply socket.broadcast, [k, v]
 
-      for name, helper of helpers
-        do (name, helper) ->
-          ctx[name] = ->
-            helper.apply(ctx, arguments)
-      ctx
-
-    ctx = build_ctx()
+    ctx = build_ctx(socket)
     ws_handlers.connection.apply(ctx, [ctx]) if ws_handlers.connection?
 
     socket.on 'disconnect', ->
-      ctx = build_ctx()
+      ctx = build_ctx(socket)
       ws_handlers.disconnect.apply(ctx, [ctx]) if ws_handlers.disconnect?
 
     for name, h of ws_handlers
       do (name, h) ->
         if name isnt 'connection' and name isnt 'disconnect'
           socket.on name, (data) ->
-            ctx = build_ctx()
+            ctx = build_ctx(socket)
             ctx.data = data
             switch app.settings['databag']
               when 'this' then h.apply(data, [ctx])
