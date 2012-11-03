@@ -134,6 +134,7 @@ zappa.app = (func) ->
           socket.on name, (data) ->
             ctx = build_ctx(socket)
             ctx.data = data
+            ctx.event = name
             h = ws_handlers[name]
             h.apply(ctx, [ctx])
       ws_handlers[name] = h
@@ -298,6 +299,7 @@ zappa.app = (func) ->
           socket.on name, (data) ->
             ctx = build_ctx(socket)
             ctx.data = data
+            ctx.event = name
             h = ws_handlers[name]
             switch app.settings['databag']
               when 'this' then h.apply(data, [ctx])
