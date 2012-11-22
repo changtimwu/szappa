@@ -2,7 +2,7 @@
 log = console.log
       
 task 'build', ->
-  run 'coffee -o lib -c src/*.coffee'
+  run 'coffee -c -o lib  src/client.coffee src/zappa.coffee'
     
 task 'test', ->
   run 'coffee tests/index.coffee'
@@ -33,8 +33,11 @@ run = (args...) ->
       when 'function' then callback = a
   
   command += ' ' + params.join ' ' if params?
-  cmd = spawn '/bin/sh', ['-c', command], options
-  cmd.stdout.on 'data', (data) -> process.stdout.write data
-  cmd.stderr.on 'data', (data) -> process.stderr.write data
-  process.on 'SIGHUP', -> cmd.kill()
-  cmd.on 'exit', (code) -> callback() if callback? and code is 0
+  msgprint = (err,stdout,stderr) ->
+    throw err if err
+    console.log stdout + stderr
+  exec command, msgprint 
+  #cmd.stdout.on 'data', (data) -> process.stdout.write data
+  #cmd.stderr.on 'data', (data) -> process.stderr.write data
+  #process.on 'SIGHUP', -> cmd.kill()
+  #cmd.on 'exit', (code) -> callback() if callback? and code is 0
