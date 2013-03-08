@@ -69,7 +69,7 @@ express.View.prototype.__defineGetter__ 'contents', ->
   fs.readFileSync p, 'utf8'
 
 # Takes in a function and builds express/socket.io apps based on the rules contained in it.
-zappa.app = (func, options={}) ->
+zappa.app = (func, options) ->
   context = {id: uuid(), zappa, express}
   
   context.root = path.dirname(module.parent.filename)
@@ -79,9 +79,12 @@ zappa.app = (func, options={}) ->
   ws_handlers = {}
   helpers = {}
   postrenders = {}
-  app = context.app = express.createServer options
-  io = context.io = socketio.listen(app)
+  if options?
+    app = context.app = express.createServer options
+  else
+    app = context.app = express.createServer()
 
+  io = context.io = socketio.listen(app)
   # Tracks if the zappa middleware is already mounted (`@use 'zappa'`).
   zappa_used = no
 
